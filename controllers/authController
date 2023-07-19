@@ -1,0 +1,74 @@
+const authController = require('express').Router()
+const User = require('../models/User')
+const bcrypt = require("bcrypt")
+const jwt = require('jsonwebtoken')
+
+// register
+
+authController.post('/register' , async(req,res) => {
+    try {
+        
+        const isExisting = await User.findOne({email: req.body.email})
+        if(isExisting)
+        {
+            return res.status(400).json({message:"Email already exists"})
+        }
+        const hashedPassword = await bcrypt.hash(req.body.password,10)
+        const newUser = await User.create({...req.body , password: hashedPassword})
+        const {password , ...others} = newUser._doc
+        /* Let's say we have a newUser object that represents a user in our application. This object has several properties like name, email, and password. We want to extract all the properties from this object except for the password property.
+
+To do this, we can use a technique called "object destructuring" in JavaScript. It allows us to extract specific properties from an object and assign them to variables.
+
+In this case, the code const { password, ...others } = newUser._doc does the following:
+
+It takes the newUser._doc object and starts extracting its properties.
+The password property is assigned to a variable called password.
+The ...others part is called the "rest operator." It collects all the remaining properties from the newUser._doc object and assigns them to a new object called others.
+So, after running this code, we will have two variables:
+
+password will hold the value of the password property from the newUser._doc object.
+others will be a new object that contains all the properties from newUser._doc, except for the password property. */
+
+        const token = jwt.sign({id: newUser._id, isAdmin: newUser.isAdmin} , process.env.JWT_SECRET, {expiresIn: '5h'})
+        return res.status(201).json({others,token})
+    } catch (error) {
+        return res.status(500).json(error.message)
+    }
+})
+
+
+
+//login
+authController.post("/login", async (req, res) => {
+  try {
+    const user = await User.findOne({ email: req.body.email });
+
+    if (!user) {
+      return res.status(400).json({ message: "GO REGISTER FIRST!" });
+    }
+
+    const comparePass = await bcrypt.compare(req.body.password, user.password);
+
+    if (!comparePass) {
+      return res.status(400).json({ message: "USER CREDENTIALS ARE WRONG!" });
+    }
+
+    const { password, ...others } = user._doc;
+
+    const token = jwt.sign(
+      { id: user._id, isAdmin: user.isAdmin },
+      process.env.JWT_SECRET,
+      { expiresIn: "5h" }
+    );
+
+    res.header("Authorization", `Bearer ${token}`);
+
+    return res.status(201).json({ user: others, token });
+  } catch (error) {
+    return res.status(500).json(error.message);
+  }
+});
+
+
+module.exports = authController
