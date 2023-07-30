@@ -3,3 +3,4 @@ This a website made for Recruiters to search the right candidates on based on th
 It has register and login functionality.
 JWT authentication is used.
 Filter options is given.
+MADE USING MERN STACK
